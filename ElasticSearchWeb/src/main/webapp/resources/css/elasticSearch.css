@@ -1,0 +1,21 @@
+/*
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+*/
+/* 
+    Created on : 09/10/2017, 3:05:45 PM
+    Author     : glennm
+*/
+
+/* The Modal (background) */
+h1 {
+    color: rgb(0,0, 160);
+    font-size: medium;
+}
+
+/* Modal Content/Box */
+pre {
+    font-family: monospace;
+    font-size: 10pt;
+}

@@ -1,0 +1,233 @@
+<!DOCTYPE html>
+<!--
+To change this license header, choose License Headers in Project Properties.
+To change this template file, choose Tools | Templates
+and open the template in the editor.
+-->
+<html>
+    <head>
+        <title>Useful Elastic Search Queries</title>
+        <link href="resources/css/bootstrap.min.css" rel="stylesheet">
+
+        <!-- HTML5 shim and Respond.js for IE8 support of HTML5 elements and media queries -->
+        <!-- WARNING: Respond.js doesn't work if you view the page via file:// -->
+        <!--[if lt IE 9]>
+          <script src="https://oss.maxcdn.com/html5shiv/3.7.3/html5shiv.min.js"></script>
+          <script src="https://oss.maxcdn.com/respond/1.4.2/respond.min.js"></script>
+        <![endif]-->
+
+        <meta charset="UTF-8">
+        <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    </head>
+    <body>
+        <div class="container">
+            <div class="row">
+                <div class="col-sm-12">&nbsp;</div>
+            </div>
+            <div class="row">
+                <div class="col-sm-2">
+                    <img src="resources/logo/Customer.png" class="media-object" style="width:100px">   
+                </div>
+                <div class="col-sm-8">&nbsp;</div>
+                <div class="col-sm-2, media-right">
+                    <img src="resources/logo/ThinkBig.png" class="media-object" style="width:100px">
+                </div>
+            </div>
+            <div class="page-header">
+              <h1>Useful elastic search queries</h1>
+              <p class="lead">Following are some basic elastic search queries that may be helpful to maintain the Kylo repository.</p>
+              <p>Refer to the <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs.html" target="elasticWindow">documentation</a> for additional information.</p>
+            </div>
+            <div class="page-header">
+              <h1>Kylo search configuration information</h1>
+              <p class="lead">Additional information relating to Kylo's use of search engines can be found in the following pages.</p>
+              <p>Refer to the <a href="http://kylo.readthedocs.io/en/v0.8.3/how-to-guides/ConfigureKyloForGlobalSearch.html" target="kyloWindow">Kylo documentation</a> for information relating to Kylo search configuration.</p>
+              <p>
+                  Check that you are referencing the latest version of the documentation by following this link: <a href="https://kylo.readthedocs.io/" target="kyloWindow">latest Kylo docs</a><br>
+                  Then scroll down to the "HowTo guides" section and click on the "Kylo & Global Search" sub heading.
+              </p>
+            </div>
+            
+            <h3>Query elastic search</h3>
+            <p>To query the repository to return any record that contains the word "roll" use the following:</p>
+            <p><code>curl http://localhost:9200/_search?q=roll |python -m json.tool</code></p>
+            <p>To search for records that contain words starting with roll (e.g. will match "rolling") use the following:</p>
+            <p><code>curl http://localhost:9200/_search?q=roll* |python -m json.tool</code></p>
+
+            <p>To search for words starting with "stone"  and limit the search to data ingested by Kylo (i.e. exclude metadata from the search), add "kylo-data"to the URL:</p>
+            <p><code>curl http://localhost:9200/kylo-data/_search?q=stone* |python -m json.tool</code></p>
+
+
+            <h3>Deleting a single record</h3>
+            <p>Assuming one of the above "query" requests returned a hit that looked like the following</p>
+            <pre>{
+    "_id": "a846b37f-adeb-46dc-bb1c-96b56646af81",
+    "_index": "kylo-data",
+    "_score": 1.0,
+    "_source": {
+    "eventid": 8151,
+    "eventname": "Rolling Stones",
+    "kylo_schema": "concerts",
+    "kylo_table": "events",
+    "starttime": "4/15/08 19:00",
+    "venueid": 115
+  },
+  "_type": "hive-data"
+}
+</pre>
+
+            <p>This specific record may be deleted using a the following request:</p>
+            <p><code>curl -XDELETE http://localhost:9200/kylo-data/hive-data/a846b37f-adeb-46dc-bb1c-96b56646af81 |python -m json.tool</code></p>
+
+            <p>Note that the record ID (a846b37f-adeb-46dc-bb1c-96b56646af81) has been transcribed into the request URL</p>
+            <p>This will output a confirmation of the form:</p>
+            <pre>{
+    "_id": "a846b37f-adeb-46dc-bb1c-96b56646af81",
+    "_index": "kylo-data",
+    "_shards": {
+        "failed": 0,
+        "successful": 1,
+        "total": 2
+    },
+    "_type": "hive-data",
+    "_version": 2,
+    "found": true,
+    "result": "deleted"
+}
+</pre>
+            
+            <h3>Deleting an entire data set</h3>
+            <p>The following request will delete <strong>all</strong> data contained in the Kylo any (and all) tables named 'stones' without regards as to which database the table(s) resides.</p>
+
+            <p>Note that this is a multi-line request. As such, proper use of the quotation marks is important.</p>
+            <pre><code>curl -XPOST 'localhost:9200/kylo-data/_delete_by_query' -H 'Content-Type: application/json' -d'
+{
+  "query": {
+    "match" : {
+        "kylo_table" : "stones"
+    }
+  }
+}
+' |python -m json.tool</code></pre>
+
+            <p>This will output a confirmation of the form:</p>
+            <pre>{
+    "batches": 1,
+    "deleted": 8,
+    "failures": [],
+    "noops": 0,
+    "requests_per_second": -1.0,
+    "retries": {
+        "bulk": 0,
+        "search": 0
+    },
+    "throttled_millis": 0,
+    "throttled_until_millis": 0,
+    "timed_out": false,
+    "took": 33,
+    "total": 8,
+    "version_conflicts": 0
+}
+</pre>
+            
+            <p>To delete on multiple fields:</p>
+            <pre>curl -XPOST 'localhost:9200/kylo-data/_delete_by_query' -H 'Content-Type: application/json' -d'
+{
+  "query": {
+    "bool" : {
+      "must" : [
+          { "match" : {"kylo_schema" : "testing" }},
+          { "match" : {"kylo_table" : "stones"}}
+      ]
+    }
+  }
+}' | python -m json.tool</pre>
+            <p>This will delete all indexed records that contain both the "kylo_schema" being equal to "testing" and the "kylo_table" being equal to "stones"</p>
+
+
+            <h3>Controlling query fields</h3>
+            <p>
+                If the user searches for text that happens to align with a schema and/or table name, then all records in that schema and/or table will be returned.
+                This will occur regardless of whether or not the entered text matches the content of the table. It has the potential to generate large quantities of results.
+            </p>
+            <p>
+                For example, entering "test" as the search string in the demo VM will result in every record in the test schema being returned.
+                This occurs despite the fact that though only one or two records have the word "test" in them. The problem is that each and every one of these records
+                contains a field "kylo-schema" that has the value test.
+            </p>
+
+            <p>The following queries provide examples of how to avoid searching the kylo_schema (and by extension the kylo_table) field(s).</p>
+
+            <pre><code># This query works, but has the potential to miss some records.
+# If any of the the content includes the word test, then the record is not selected.
+curl -XGET 'localhost:9200/kylo-data/_search?pretty=true' -d '{
+  "query" : {
+     "query_string": {
+          "query": "test AND -kylo_schema:test"
+     }
+   }
+}'
+</code></pre>
+
+            <pre><code># This query works better, but could become difficult to formulate as the number of indexed columns grows.
+# Also, it appears to be limited to just the text fields. If any non text fields are included (e.g. id, amt, concertdate) an
+# exception is thrown. The exception is of the form:
+#      "caused_by" : {
+#        "type" : "number_format_exception",
+#        "reason" : "For input string: \"test\""
+#      }
+                
+curl -XGET 'localhost:9200/kylo-data/_search?pretty=true' -d '{
+  "query" : {
+     "query_string": {
+          "fields": [ "addr", "eventname",
+                    "name", "productdescription",
+                    "productname", "productvendor", "suburb", "venuecity",
+                    "venuename", "venuestate" ],
+          "query": "test"
+     }
+  }
+}'
+</code></pre>
+
+            <h3>Miscellaneous queries</h3>
+            <p>
+                To see the structure of an index:
+            </p>
+            <pre><code>curl -XGET 'localhost:9200/kylo-data/_mapping' |python -m json.tool</code></pre>
+
+            <p>To store stuff into the kylo-data index.<br>
+                NB: The 9999 is the record id and should be unique. You may also "update" an existing record by supplying it's id in place of the 9999.
+            </p>
+            <pre><code>curl -XPUT 'localhost:9200/kylo-data/9999' -d '{
+  "kylo_schema": "other",
+  "kylo_table": "stones",
+  "name": "Lisa passes test for high school"
+}' |python -m json.tool</code></pre>
+
+
+            <p>Search the field called "name" for the value "bart". Return an <strong>explanation</strong> of the method used to calculate the score <strong>and</strong> return up to 100 hits.</p>
+            <pre><code>curl "http://localhost:9200/kylo-data/_search?q=name:Bart&explain&size=100" |python -m json.tool</code></pre>
+
+            <p>Retrieve records by specified id's.</p>
+            <pre><code>curl -XGET 'localhost:9200/_search?pretty' -H 'Content-Type: application/json' -d'
+{
+    "query": {
+        "ids" : {
+/*            "type" : "hive-data", */
+            "values" : ["9990", "9999"]
+        }
+    }
+}
+'
+</code></pre>
+
+            <h3>More Information</h3>
+            <p>More information about elastic search queries can be found in the official <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/docs.html" target="elasticWindow">documentation</a>.</p>
+            <p>For full information the <a href="https://www.elastic.co/guide/en/elasticsearch/reference/current/index.html" target="elasticWindow">Elastic Search Reference manual</a> may also be useful.</p>
+            <p>&nbsp;</p>
+        </div>
+
+        
+    </body>
+</html>
